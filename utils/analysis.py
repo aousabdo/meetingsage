@@ -137,45 +137,66 @@ def extract_participants(transcript):
         
         # Import here to handle different versions of the OpenAI SDK
         import openai
+        import json
+        import os
         
-        # Try newer API first, fall back to older if needed
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            logging.warning("OpenAI API key not found, unable to extract participants")
+            return []
+            
         try:
-            # Newer OpenAI API
-            client = openai.OpenAI(api_key=OPENAI_API_KEY)
+            # Support both the newer client (>1.0) and the legacy one
+            client = openai.OpenAI(api_key=api_key)
             response = client.chat.completions.create(
                 model=GPT_MODEL,
                 messages=[
-                    {"role": "system", "content": "You are an AI assistant that extracts participant names from meeting transcripts."},
+                    {"role": "system", "content": "You analyze meeting transcripts to identify participants."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                response_format={"type": "json_object"}
+                max_tokens=500,
+                temperature=0.0,
             )
-            result_content = response.choices[0].message.content
-        except (AttributeError, ImportError, TypeError):
-            # Older OpenAI API
-            if hasattr(openai, 'api_key'):
-                openai.api_key = OPENAI_API_KEY
-                
-            response = openai.ChatCompletion.create(
-                model=GPT_MODEL,
-                messages=[
-                    {"role": "system", "content": "You are an AI assistant that extracts participant names from meeting transcripts."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                response_format={"type": "json_object"}
-            )
-            result_content = response.choices[0].message.content
+            content = response.choices[0].message.content
+            
+        except (AttributeError, ImportError) as e:
+            # Fall back to older OpenAI SDK format
+            logging.warning(f"Using legacy OpenAI API format: {e}")
+            try:
+                response = openai.ChatCompletion.create(
+                    model=GPT_MODEL,
+                    messages=[  
+                        {"role": "system", "content": "You analyze meeting transcripts to identify participants."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=500,
+                    temperature=0.0,
+                )
+                content = response.choices[0].message.content
+            except Exception as e:
+                logging.error(f"Error using legacy OpenAI API: {e}")
+                return []
         
-        # Extract the participants from the response
-        result = json.loads(result_content)
-        participants = result.get("participants", [])
+        try:
+            # Try to parse the response as JSON
+            result = json.loads(content)
+            if "participants" in result and isinstance(result["participants"], list):
+                participants = result["participants"]
+                if len(participants) > 0:
+                    return participants
+        except json.JSONDecodeError:
+            # If it's not proper JSON, try to extract participants from the text
+            import re
+            participants_match = re.search(r'"participants":\s*\[(.*?)\]', content)
+            if participants_match:
+                participants_str = participants_match.group(1)
+                participants = [p.strip().strip('"\'') for p in participants_str.split(",")]
+                if len(participants) > 0:
+                    return participants
         
-        logging.info(f"Extracted {len(participants)} participants from transcript")
-        
-        return participants
+        # If all else fails, return a default value
+        return ["Unknown Speaker"]
         
     except Exception as e:
         logging.error(f"Error extracting participants: {e}")
-        return []
+        return ["Unknown Speaker"]

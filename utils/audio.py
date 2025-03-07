@@ -5,6 +5,7 @@ import datetime
 import numpy as np
 import soundfile as sf
 from config import TEMP_AUDIO_PATH, AUDIO_SAMPLE_RATE
+import tempfile
 
 # Try to suppress the pydub warning about ffmpeg
 import warnings
@@ -205,13 +206,71 @@ def get_audio_duration(audio_file_path):
     Returns:
         float: Duration of the audio file in seconds
     """
-    try:
-        # Get audio file info
-        info = sf.info(audio_file_path)
-        duration = info.duration
+    if not os.path.exists(audio_file_path):
+        logging.error(f"Audio file not found: {audio_file_path}")
+        return 0
         
-        logging.info(f"Audio duration: {duration:.2f} seconds")
-        return duration
+    try:
+        # Method 1: Use soundfile
+        try:
+            info = sf.info(audio_file_path)
+            duration = info.duration
+            logging.info(f"Audio duration (soundfile): {duration:.2f} seconds")
+            return duration
+        except Exception as e:
+            logging.warning(f"Could not get duration using soundfile: {e}")
+        
+        # Method 2: Try pydub for more format support
+        try:
+            from pydub import AudioSegment
+            # Convert webm to mp3 if needed
+            if audio_file_path.endswith('.webm'):
+                # Create a temporary file for conversion
+                temp_file = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}.mp3")
+                cmd = f"ffmpeg -i {audio_file_path} -vn -ab 128k -ar 44100 -y {temp_file}"
+                os.system(cmd)
+                if os.path.exists(temp_file):
+                    audio = AudioSegment.from_file(temp_file)
+                    os.remove(temp_file)  # Clean up temp file
+                else:
+                    audio = AudioSegment.from_file(audio_file_path)
+            else:
+                audio = AudioSegment.from_file(audio_file_path)
+                
+            duration = len(audio) / 1000.0  # pydub duration is in milliseconds
+            logging.info(f"Audio duration (pydub): {duration:.2f} seconds")
+            return duration
+        except Exception as e:
+            logging.warning(f"Could not get duration using pydub: {e}")
+        
+        # Method 3: Use ffprobe if available
+        try:
+            import subprocess
+            cmd = [
+                'ffprobe', 
+                '-v', 'error', 
+                '-show_entries', 'format=duration', 
+                '-of', 'default=noprint_wrappers=1:nokey=1', 
+                audio_file_path
+            ]
+            output = subprocess.check_output(cmd).decode('utf-8').strip()
+            duration = float(output)
+            logging.info(f"Audio duration (ffprobe): {duration:.2f} seconds")
+            return duration
+        except Exception as e:
+            logging.warning(f"Could not get duration using ffprobe: {e}")
+            
+        # Method 4: Estimate from file size
+        try:
+            file_size_mb = os.path.getsize(audio_file_path) / (1024 * 1024)
+            # Rough estimate: 1MB ~= 1 minute for typical speech audio
+            duration = file_size_mb * 60
+            logging.info(f"Audio duration (file size estimate): {duration:.2f} seconds")
+            return duration
+        except Exception as e:
+            logging.warning(f"Could not estimate duration from file size: {e}")
+            
+        return 0
         
     except Exception as e:
         logging.error(f"Error getting audio duration: {e}")

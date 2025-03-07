@@ -135,13 +135,42 @@ def process_meeting_recording(audio_file_path, meeting_title):
             
         logging.info("Summarization complete")
         
+        # 2.5 Extract action items from transcript
+        summary_text, action_items = analyze_transcript(transcript_text, meeting_title)
+        if not action_items:
+            # Use the regular summary if no action items found
+            logging.info("No action items found through analysis, using summary only")
+        else:
+            logging.info(f"Extracted {len(action_items)} action items from transcript")
+        
+        # Get audio duration
+        duration = get_audio_duration(audio_file_path)
+        if duration == 0:
+            logging.warning("Could not determine audio duration, using file size as fallback")
+            # Fallback - estimate duration based on file size (rough approximation)
+            try:
+                file_size_mb = os.path.getsize(audio_file_path) / (1024 * 1024)
+                # Rough estimate: 1MB ~= 1 minute for typical speech audio
+                duration = file_size_mb * 60
+            except Exception as e:
+                logging.error(f"Fallback duration estimation failed: {e}")
+        
+        # Get participants
+        participants = extract_participants(transcript_text)
+        if not participants or len(participants) == 0:
+            # Set default participant if none detected
+            participants = ["Unknown Speaker"]
+            
         # 3. Save to database
         meeting_data = {
             "title": meeting_title,
             "transcript": transcript_text,
             "summary": summary,
             "timestamp": timestamp,
-            "audio_path": audio_file_path
+            "audio_path": audio_file_path,
+            "duration": duration,
+            "participants": participants,
+            "action_items": [item.to_dict() for item in action_items] if action_items else []
         }
         
         meeting_id = save_meeting(meeting_data)

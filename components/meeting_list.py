@@ -36,15 +36,20 @@ def display_meeting_list():
         for meeting in meeting_objects:
             meeting_duration = "Unknown"
             if meeting.duration:
-                mins = int(meeting.duration // 60)
-                secs = int(meeting.duration % 60)
-                meeting_duration = f"{mins}m {secs}s"
+                # Check if duration is valid
+                if isinstance(meeting.duration, (int, float)) and meeting.duration > 0:
+                    mins = int(meeting.duration // 60)
+                    secs = int(meeting.duration % 60)
+                    meeting_duration = f"{mins}m {secs}s"
                 
+            participants = ", ".join(meeting.participants) if meeting.participants else "Unknown"
+            
             meeting_data.append({
-                "Title": meeting.title,
-                "Date": meeting.created_at.strftime("%b %d, %Y"),
-                "Duration": meeting_duration,
                 "ID": meeting.id,
+                "Title": meeting.title,
+                "Date": meeting.created_at.strftime("%b %d, %Y") if meeting.created_at else "Unknown",
+                "Duration": meeting_duration,
+                "Participants": participants[:50] + "..." if len(participants) > 50 else participants,
                 "Object": meeting
             })
         
