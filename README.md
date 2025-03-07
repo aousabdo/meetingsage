@@ -23,7 +23,7 @@ MeetingSage is an AI-powered meeting assistant that transcribes, summarizes, and
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/meetingsage.git
+   git clone https://github.com/aousabdo/meetingsage.git
    cd meetingsage
    ```
 
@@ -77,15 +77,34 @@ meetingsage/
 ├── app.py                 # Main Streamlit application
 ├── config.py              # Configuration settings
 ├── requirements.txt       # Python dependencies
+├── .env                   # Environment variables (gitignored)
+├── .gitignore             # Git ignore file
+├── README.md              # Project documentation
+├── test_api.py            # API testing script
+├── test_mongodb.py        # MongoDB testing script
+│
 ├── components/            # UI components
+│   ├── __init__.py        # Package initialization
+│   ├── action_items.py    # Action item UI components
+│   ├── meeting_list.py    # Meeting list display components
+│   ├── recorder.py        # Audio recording components
+│   ├── sidebar.py         # Sidebar navigation
+│   └── transcript_view.py # Transcript display components
+│
 ├── models/                # Data models
+│   ├── __init__.py        # Package initialization
+│   ├── meeting.py         # Meeting data model
+│   └── user.py            # User data model
+│
 ├── utils/                 # Utility functions
-│   ├── audio.py           # Audio processing utilities
-│   ├── transcription.py   # Speech-to-text functionality
+│   ├── __init__.py        # Package initialization
 │   ├── analysis.py        # Meeting analysis tools
-│   ├── summarization.py   # Text summarization
+│   ├── audio.py           # Audio processing utilities
 │   ├── database.py        # MongoDB integration
-│   └── mock_database.py   # Local storage fallback
+│   ├── mock_database.py   # Local storage fallback
+│   ├── summarization.py   # Text summarization
+│   └── transcription.py   # Speech-to-text functionality
+│
 ├── mock_db/               # Local storage directory
 └── temp_audio/            # Temporary audio storage
 ```
